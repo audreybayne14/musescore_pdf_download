@@ -1,0 +1,74 @@
+// Immediately invoked function expression to prevent global scope pollution
+(async function () {
+  // Function to wait for images to load
+  const waitForImages = (selector, expectedCount) => {
+    console.log("Waiting for images to load...");
+    return new Promise((resolve) => {
+      const intervalId = setInterval(() => {
+        const images = [...document.querySelectorAll(selector)];
+        if (images.length === expectedCount && images.every(image => image.src && image.complete)) {
+          clearInterval(intervalId);
+          resolve(images);
+        }
+      }, 500);
+    })
+  }
+
+  // Selectors for scrolling and image elements
+  const scrollContainerSelector = "#jmuse-scroller-component";
+  const pageSelector = `${scrollContainerSelector}>.F16e6`;
+  const imageSelector = `${pageSelector}>img`;
+
+  // DOM elements selection
+  const scrollContainer = document.querySelector(scrollContainerSelector);
+  const allElements = document.querySelectorAll(scrollContainerSelector + ">*");
+  const pages = document.querySelectorAll(pageSelector);
+
+  // Set heights for scrolling and viewport
+  const SCROLL_HEIGHT_PX = 10000;
+  const VIEWPORT_HEIGHT_PX = 9999;
+  for (const el of allElements) {
+    el.style.display = "none"; // Hide all elements
+  }
+  scrollContainer.insertAdjacentHTML("beforeend", `<div style="height:${SCROLL_HEIGHT_PX}px"></div>`);
+  scrollContainer.style.height = VIEWPORT_HEIGHT_PX + "px";
+  scrollContainer.scrollTo(0, 0);
+  scrollContainer.scrollTo(0, 1);
+
+  // Wait for images to load
+  const loadedImages = await waitForImages(imageSelector, pages.length);
+
+  // Clear HTML content and style
+  document.getElementsByTagName("html")[0].innerHTML = "";
+  const style = document.createElement("style");
+  style.textContent = `
+    body{
+      margin:0;
+    }
+    img{
+      height:296mm; /* Adjusting height to prevent overflow */
+    }
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    @media print {
+      html, body {
+        width: 210mm;
+        height: 297mm;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Clone and append images to body
+  for (const image of loadedImages) {
+    const imageClone = document.createElement("img");
+    imageClone.src = image.src;
+    document.body.appendChild(imageClone);
+  }
+
+  // Wait for images again and then trigger print
+  waitForImages("img", pages.length).then(() => window.print());
+
+})();
